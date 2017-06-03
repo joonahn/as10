@@ -1,0 +1,100 @@
+structure A = Absyn
+structure S = Symbol
+
+val SymTable = S.empty
+
+fun errorReport () = 
+	let val em = ErrorMsg.error((0,0), "Type Error") in
+		A.Tupletp([])
+	end
+
+%%
+
+%pos ErrorMsg.pos
+%verbose
+%eop EOF
+%noshift EOF
+%name Fun
+%start prog
+%term EOF
+| INT of int | ID of string
+| LPAREN | RPAREN | IF | THEN | ELSE 
+| IN | LET | REF | DO | WHILE | NOT | OR | AND 
+| ASSIGN | BANG | ARROW 
+| GT | LT | EQ | TIMES | MINUS | PLUS 
+| COLON | SEMICOLON | COMMA | PROJ of int | FUN | UNARY | IFRULE | FUNCCALL
+
+%nonterm tp of A.tp | tps of A.tp list 
+| oper of A.oper | exp of A.exp | exps of A.exp list | func of A.func
+| fundec of A.fundec | fundecs of A.fundec list | prog of A.prog | tpc
+
+
+%nonassoc LET IN
+%left SEMICOLON
+%right IF DO IFRULE
+%left THEN WHILE
+%left ELSE
+%left ASSIGN
+%nonassoc COLON
+%right AND OR
+%nonassoc NOT
+%left EQ LT
+%left PLUS MINUS
+%left TIMES
+%left UNARY FUNCCALL
+
+
+%%
+
+exp: exp LPAREN exp RPAREN   %prec FUNCCALL    (A.Pos((exp1left,RPARENright), A.Call (exp1,exp2)))
+exp: ID                      				   (A.Pos((IDleft, IDright), A.Id(S.symbol(ID))))
+exp: INT                     				   (A.Pos((INTleft, INTright), A.Int(INT)))
+exp: exp oper exp            				   (A.Pos((exp1left,exp2right), A.Op (oper,exp1::exp2::[])))
+exp: oper exp                				   (A.Pos((operleft,expright), A.Op(oper,exp::[])))
+exp: LPAREN exp RPAREN       				   (exp)
+(*unary operators*)
+exp: MINUS exp        %prec UNARY          (A.Op(A.Sub,A.Int(0)::exp::[])) 
+exp: NOT exp                              (A.If(A.Op(A.Eq, exp::A.Int(0)::[]), A.Int(1), A.Int(0))) 
+exp: BANG exp         %prec UNARY          (A.Op(A.Get,exp::[]))
+exp: PROJ exp         %prec UNARY          (A.Proj(PROJ, exp))
+(*binary operators*)
+exp: exp PLUS exp               (A.Op(A.Add,exp1::exp2::[]))
+exp: exp MINUS exp              (A.Op(A.Sub,exp1::exp2::[]))
+exp: exp TIMES exp              (A.Op(A.Mul,exp1::exp2::[]))
+exp: exp AND exp                (A.If(exp1,A.If(exp2, A.Int(1), A.Int(0)),A.Int(0)))
+exp: exp OR exp                 (A.If(exp1,A.Int(1),A.If(exp2, A.Int(1), A.Int(0))))
+exp: exp EQ exp                 (A.Op(A.Eq, exp1::exp2::[]))
+exp: exp LT exp                 (A.Op(A.LT, exp1::exp2::[]))
+exp: exp ASSIGN exp             (A.Op(A.Set,exp1::exp2::[]))
+(*tuples*)
+exp: LT exps GT                 (A.Tuple(exps))
+exps: exp COMMA exps            (exp::exps)
+exps: exp                       (exp::[])
+exps:                           ([])
+(*ETC*)
+exp: exp COLON tp               (A.Constrain(exp,tp))
+exp: REF exp                    (A.Op(A.Ref, exp::[]))
+exp: exp SEMICOLON exp          (A.Let(S.symbol("JYP"),exp1,exp2))
+(*IF statement*)
+exp: IF exp THEN exp ELSE exp %prec IFRULE  (A.If(exp1, exp2, exp3))
+exp: IF exp THEN exp          %prec IFRULE  (A.If(exp1, exp2, A.Tuple([])))
+exp: WHILE exp DO exp         				  (A.While(exp1, exp2))
+exp: LET ID EQ exp IN exp     				  (A.Let(S.symbol(ID), exp1, exp2))
+
+
+(*fundec: FUN ID LPAREN ID COLON tp RPAREN COLON tp EQ exp ()*)
+
+prog: fundecs (fundecs)
+fundecs: fundec fundecs (fundec::fundecs)
+fundecs: fundec (fundec::[])
+func: FUN ID LPAREN ID COLON tp RPAREN COLON tp EQ exp (S.symbol(ID1), S.symbol(ID2), tp1, tp2, exp)
+fundec: func (((funcleft, funcright), func))
+
+tp: LT tps GT (A.Tupletp(tps))
+tps: tp COMMA tps (tp::tps)
+tps: tp             (tp::[])
+tps:               ([])
+tp: tp ARROW tp   (A.Arrowtp(tp1, tp2))
+tp: tp REF         (A.Reftp(tp))
+tp: LPAREN tp RPAREN (tp)
+tp: ID              (if(ID = "int") then A.Inttp else errorReport() )

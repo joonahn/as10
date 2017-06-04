@@ -11,7 +11,7 @@ struct
         val () = TypeCheck.tc absyn
         val () = still_ok()
         (* val _ = print "Program successfully typechecked\n" *)
-        (* val _ = FunPP.print_prog absyn *)
+         val _ = FunPP.print_prog absyn 
 	val (strBL, funCodeL) = Codegen.codegen absyn
 	val out' = TextIO.openOut (filename^".noregalloc.s")
 	val _ = Mips.printAssem(out', (strBL, funCodeL)) 

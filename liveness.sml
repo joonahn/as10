@@ -150,7 +150,7 @@ structure Liveness : LIVENESS = struct
       val live_at_init = List.foldl init_live Symbol.empty blocks
       val live_at = compute_live_at {mention=mention, interfere=interfere} 
                       live_at_init (List.rev blocks)
-      val _ = List.app (debug_live_at live_at) blocks
+      (*val _ = List.app (debug_live_at live_at) blocks*)
     in () (* TO IMPLEMENT !!! *)
     end
 

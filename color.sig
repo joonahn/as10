@@ -1,7 +1,8 @@
 signature COLOR = sig
 
    type coloring = {alloc: Mips.allocation,
-	            spills: Mips.RegSet.set}
+	            spills: Mips.RegSet.set, 
+                coalesced: Mips.RegSet.set list}
 
    val color : {interference: Liveness.IG.graph,
 	        moves: Liveness.IG.graph,
